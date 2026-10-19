@@ -162,6 +162,8 @@ body {
   font-weight: bold;
   border-radius: 6px;
   cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
 }
 .ctrl-btn:disabled { background: #94a3b8; }
 
@@ -438,7 +440,7 @@ function renderResources(resources) {
         <strong>${resourceTitle}</strong><br/>
         <small>${resourceDescription}</small>
       </div>
-      <a href="${resourceUrl}" ${resourceUrl !== '#' ? 'target="_blank" rel="noopener noreferrer"' : 'onclick="alert(\'Accessing reference material.\');"'} class="ctrl-btn">Open PDF</a>
+      <a href="${resourceUrl}" ${resourceUrl !== '#' ? 'target="_blank" rel="noopener noreferrer"' : 'onclick="alert(\'Accessing reference material.\');"'} class="ctrl-btn">Read Online</a>
     `;
     container.appendChild(card);
   });
@@ -722,9 +724,9 @@ window.addEventListener('DOMContentLoaded', () => initLesson({
   ],
   "resources": [
     {
-      "title": "Of Mice and Men by John Steinbeck (Full PDF Text)",
-      "description": "Direct open PDF document for classroom reading and study",
-      "url": "https://archive.org/download/john-steinbeck-of-mice-and-men/john-steinbeck-of-mice-and-men.pdf"
+      "title": "Of Mice and Men by John Steinbeck (Digital Text Reader)",
+      "description": "Full open digital library viewable online via Internet Archive",
+      "url": "https://archive.org/details/john-steinbeck-of-mice-and-men"
     }
   ],
   "form": {
