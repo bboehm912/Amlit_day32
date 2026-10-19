@@ -188,6 +188,7 @@ input, textarea, select {
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
+  box-sizing: border-box;
 }
 
 .submit-btn {
@@ -257,7 +258,7 @@ input, textarea, select {
     </div>
 
     <div id="slide-stage" class="slide-stage">
-      <!-- Slides injected by script.js -->
+      <!-- Slides injected by script -->
     </div>
 
     <div class="deck-controls">
@@ -271,7 +272,7 @@ input, textarea, select {
     <h3>Lesson Resource & Reference Hub</h3>
     <p class="muted">Access official course references below.</p>
     <div id="resource-list">
-      <!-- Resources injected by script.js -->
+      <!-- Resources injected by script -->
     </div>
   </div>
 
@@ -279,7 +280,7 @@ input, textarea, select {
   <div id="form-tab" class="card tab-content">
     <h3>Student Work Checkpoint & Reflection</h3>
     <form id="checkpoint-form" onsubmit="event.preventDefault(); window.print();">
-      <!-- Dynamic form fields injected by script.js -->
+      <!-- Dynamic form fields injected by script -->
       <button type="submit" class="submit-btn">Print this page and turn into the Red Basket!</button>
     </form>
   </div>
@@ -293,16 +294,15 @@ let bellringers = [];
 
 // Stock image pool for default visual slides
 const stockImagePool = [
-  'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80', // Turtle / Nature
-  'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=300&q=80', // Water / Earth-Diver
-  'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=300&q=80', // Ecology / Forest
-  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=300&q=80', // Campfire / Orality
-  'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=300&q=80', // Literature / History
-  'https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=300&q=80'  // Writing Workshop
+  'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=300&q=80',
+  'https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=300&q=80'
 ];
 
-// Emoji fallback pool
-const iconPool = ['🐢', '🌊', '🌱', '🗣️', '☯️', '📝'];
+const iconPool = ['🌾', '📚', '🏛️', '💬', '🌄', '📝'];
 
 function renderSlides(slides) {
   const stage = document.getElementById('slide-stage');
@@ -313,9 +313,7 @@ function renderSlides(slides) {
     wrapper.className = 'slide' + (index === 0 ? ' active' : '');
     wrapper.id = `slide-${index + 1}`;
 
-    // Priority 1: slide.image OR Stock Web Image
     const imageUrl = slide.image || stockImagePool[index % stockImagePool.length];
-    // Fallback: slide.icon OR Emoji Pool
     const fallbackEmoji = slide.icon || iconPool[index % iconPool.length];
 
     const visualMediaHTML = `
@@ -347,6 +345,7 @@ function renderSlides(slides) {
     stage.appendChild(wrapper);
   });
 }
+
 function initLesson(data) {
   bellringers = data.bellringers || [];
   totalSlides = (data.slides || []).length || 1;
@@ -361,9 +360,17 @@ function initLesson(data) {
 }
 
 function randomizeBellringer() {
-  if (!bellringers.length) return;
+  if (!bellringers || !bellringers.length) return;
   const idx = Math.floor(Math.random() * bellringers.length);
-  document.getElementById('bellringer-display').innerText = bellringers[idx];
+  const item = bellringers[idx];
+
+  if (typeof item === 'string') {
+    document.getElementById('bellringer-display').innerText = item;
+  } else if (item && typeof item === 'object') {
+    const typeStr = item.type ? `[${item.type}] ` : '';
+    const promptStr = item.prompt || item.text || item.question || '';
+    document.getElementById('bellringer-display').innerText = `${typeStr}${promptStr}`;
+  }
 }
 
 function moveSlide(dir) {
@@ -394,13 +401,16 @@ function renderResources(resources) {
       resourceList = resources.files;
     } else if (Array.isArray(resources.items)) {
       resourceList = resources.items;
-    } else if (resources.file || resources.link || resources.url) {
-      resourceList = [resources];
+    } else {
+      Object.keys(resources).forEach(cat => {
+        const catItems = resources[cat];
+        if (Array.isArray(catItems)) {
+          catItems.forEach(item => {
+            resourceList.push({ title: item, description: `Category: ${cat.toUpperCase().replace('_', ' ')}` });
+          });
+        }
+      });
     }
-  }
-
-  if (!resourceList.length && resources && typeof resources === 'object' && resources.title && (resources.file || resources.link || resources.url)) {
-    resourceList = [resources];
   }
 
   resourceList.forEach(res => {
@@ -408,17 +418,12 @@ function renderResources(resources) {
     card.className = 'resource-card';
 
     if (typeof res === 'string') {
-      const cleanText = res.trim();
-      const isFile = /\.(pdf|docx?|pptx?|xlsx?)$/i.test(cleanText);
-      if (!isFile) return;
-
-      const label = cleanText.split('/').pop();
       card.innerHTML = `
         <div>
-          <strong>${label}</strong><br/>
-          <small>Repository file</small>
+          <strong>${res}</strong><br/>
+          <small>Course Reference File</small>
         </div>
-        <a href="${cleanText}" target="_blank" rel="noopener noreferrer" class="ctrl-btn">Open Resource</a>
+        <a href="#" onclick="alert('Opening resource: ' + ${JSON.stringify(res)});" class="ctrl-btn">View Resource</a>
       `;
       container.appendChild(card);
       return;
@@ -427,14 +432,13 @@ function renderResources(resources) {
     const resourceUrl = res.file || res.link || res.url || res.href || '#';
     const resourceTitle = res.title || res.name || res.label || 'Resource Item';
     const resourceDescription = res.description || res.summary || '';
-    const fileName = resourceUrl && typeof resourceUrl === 'string' ? resourceUrl.split('/').pop() : '';
 
     card.innerHTML = `
       <div>
-        <strong>${resourceTitle || fileName || 'Resource Item'}</strong><br/>
+        <strong>${resourceTitle}</strong><br/>
         <small>${resourceDescription}</small>
       </div>
-      ${resourceUrl && resourceUrl !== '#' ? `<a href="${resourceUrl}" target="_blank" rel="noopener noreferrer" class="ctrl-btn">Open Resource</a>` : ''}
+      <a href="${resourceUrl}" ${resourceUrl !== '#' ? 'target="_blank" rel="noopener noreferrer"' : 'onclick="alert(\'Accessing reference material.\');"'} class="ctrl-btn">View Resource</a>
     `;
     container.appendChild(card);
   });
@@ -449,50 +453,68 @@ function renderForm(fields) {
   const submitBtn = form.querySelector('.submit-btn');
   form.innerHTML = '';
 
-  const fieldList = Array.isArray(fields) ? fields : [];
+  let fieldList = [];
+  if (Array.isArray(fields)) {
+    fieldList = fields;
+  } else if (fields && typeof fields === 'object' && fields !== null) {
+    fieldList = Object.values(fields);
+  }
 
   const nameGroup = document.createElement('div');
   nameGroup.className = 'form-group';
   nameGroup.innerHTML = `
     <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;">
-      <div><label for="student_name">Student Name</label><input type="text" id="student_name" /></div>
-      <div><label for="student_period">Period</label><input type="text" id="student_period" /></div>
-      <div><label for="student_date">Date</label><input type="date" id="student_date" /></div>
+      <div><label for="student_name">Student Name</label><input type="text" id="student_name" required /></div>
+      <div><label for="student_period">Period</label><input type="text" id="student_period" required /></div>
+      <div><label for="student_date">Date</label><input type="date" id="student_date" required /></div>
     </div>`;
   form.appendChild(nameGroup);
 
-  fieldList.forEach((field, index) => {
+  let questionCounter = 1;
+
+  fieldList.forEach((field) => {
+    if (field.name === 'student_name' || field.label === 'Student Full Name') return;
+
     const group = document.createElement('div');
     group.className = 'form-group';
 
-    const rawId = field.field_id || field.id || `q${index + 1}`;
-    const text = field.label || field.question || field.prompt || `Question ${index + 1}`;
+    const rawId = field.field_id || field.id || field.name || `q${questionCounter}`;
+    const text = field.label || field.question || field.prompt || `Question ${questionCounter}`;
     const id = `field_${rawId.toString().replace(/\s+/g, '_').toLowerCase()}`;
     const req = field.required ? 'required' : '';
     const options = field.type === 'true_false' ? ['True', 'False'] : (field.options || []);
-    const radios = options.map((o, i) => `<label style="font-weight:normal;"><input type="radio" id="${id}_${i}" name="${id}" value="${escapeHTML(o)}" ${req} style="width:auto;" /> ${escapeHTML(o)}</label>`).join('');
-    const checks = options.map((o, i) => `<label style="font-weight:normal;"><input type="checkbox" id="${id}_${i}" name="${id}" value="${escapeHTML(o)}" style="width:auto;" /> ${escapeHTML(o)}</label>`).join('');
+    
+    const radios = options.map((o, i) => `
+      <label style="font-weight:normal; margin-right: 16px; display: inline-flex; align-items: center; gap: 6px;">
+        <input type="radio" id="${id}_${i}" name="${id}" value="${escapeHTML(o)}" ${req} style="width:auto;" /> ${escapeHTML(o)}
+      </label>`).join('');
+      
+    const checks = options.map((o, i) => `
+      <label style="font-weight:normal; margin-right: 16px; display: inline-flex; align-items: center; gap: 6px;">
+        <input type="checkbox" id="${id}_${i}" name="${id}" value="${escapeHTML(o)}" style="width:auto;" /> ${escapeHTML(o)}
+      </label>`).join('');
 
-    let labelHTML = `<label for="${id}">${index + 1}. ${escapeHTML(text)}</label>`;
+    let labelHTML = `<label for="${id}">${questionCounter}. ${escapeHTML(text)}</label>`;
     let inputHTML = '';
 
     switch (field.type) {
       case 'multiple_choice':
       case 'true_false':
-        inputHTML = radios;
+        inputHTML = `<div style="margin-top:8px;">${radios}</div>`;
         break;
       case 'checkbox':
       case 'checkbox_group':
       case 'multi_select':
-        inputHTML = checks;
+        inputHTML = `<div style="margin-top:8px;">${checks}</div>`;
         break;
       case 'date':
         inputHTML = `<input type="date" id="${id}" ${req} />`;
         break;
+      case 'paragraph':
       case 'long_text':
       case 'quote_citation':
       case 'reflection':
-        inputHTML = `<textarea id="${id}" rows="6" ${req}></textarea>`;
+        inputHTML = `<textarea id="${id}" rows="5" ${req} placeholder="Write your response..."></textarea>`;
         break;
       case 'rating_scale':
         inputHTML = `<select id="${id}">${options.map(o => `<option>${escapeHTML(o)}</option>`).join('')}</select>`;
@@ -505,25 +527,27 @@ function renderForm(fields) {
         const blank = /_{3,}/;
         if (blank.test(text)) {
           const inline = `<input type="text" id="${id}" ${req} style="display:inline-block;width:220px;border:none;border-bottom:2px solid var(--text-dark);border-radius:0;padding:2px 6px;" />`;
-          labelHTML = `<label for="${id}">${index + 1}. ${escapeHTML(text).replace(/_{3,}/, inline)}</label>`;
+          labelHTML = `<label for="${id}">${questionCounter}. ${escapeHTML(text).replace(/_{3,}/, inline)}</label>`;
         } else {
-          inputHTML = `<input type="text" id="${id}" ${req} />`;
+          inputHTML = `<input type="text" id="${id}" ${req} placeholder="Type blank answer..." />`;
         }
         break;
       }
       case 'short_answer':
-        inputHTML = `<textarea id="${id}" rows="3" ${req}></textarea>`;
+        inputHTML = `<textarea id="${id}" rows="2" ${req} placeholder="Short answer response..."></textarea>`;
         break;
       default:
-        inputHTML = `<input type="text" id="${id}" ${req} />`;
+        inputHTML = `<input type="text" id="${id}" ${req} placeholder="Enter response..." />`;
     }
 
     group.innerHTML = `${labelHTML}${inputHTML}`;
     form.appendChild(group);
+    questionCounter++;
   });
 
   if (submitBtn) form.appendChild(submitBtn);
 }
+
 function switchTab(key) {
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -539,7 +563,251 @@ function switchTab(key) {
     document.getElementById('form-tab').classList.add('active');
   }
 }
-window.addEventListener('DOMContentLoaded', () => initLesson({"course": "English 11: American Literature", "unit": "Unit 8: Socio-Economic Crisis & Migrant Experience", "day": "Day 32", "topic": "Existential Metamorphosis: Part III", "primary_focus": "Establishing the cultural and economic backdrop for Steinbeck's 'Of Mice and Men.'", "core_objectives": "Constructing a historical framework for the novel's regional and temporal setting.", "weekly_standards": ["11.1.4.1", "11.1.4.4"], "bellringers": [{"id": 1, "prompt": "What major global economic event began in 1929 and shaped American literature of the 1930s?", "type": "Short Answer", "expected_response": "The Great Depression."}, {"id": 2, "prompt": "Identify the primary agricultural region in California where Steinbeck set 'Of Mice and Men.'", "type": "Multiple Choice", "expected_response": "The Salinas Valley."}, {"id": 3, "prompt": "Define 'migrant worker' in the context of 1930s rural America.", "type": "Short Answer", "expected_response": "An itinerant laborer who travels from place to place seeking seasonal agricultural work."}, {"id": 4, "prompt": "How might economic hardship impact human relationships and individual isolation?", "type": "Short Answer", "expected_response": "Economic strain breeds competition, distrust, and emotional isolation as people focus on survival."}], "slides": [{"title": "Historical & Cultural Backdrop of Steinbeck's 'Of Mice and Men'", "standard": "11.1.4.1", "bullets": ["Analyzing 1930s American socio-economic conditions and regional displacement.", "Connecting real historical events to fictional representations in Steinbeck's prose.", "Establishing how regional settings mirror macro-economic realities."], "callout": "Literature reflects the historical and economic realities of its creation period."}, {"title": "The Great Depression & Economic Collapse of 1929", "standard": "11.1.4.1", "bullets": ["Stock market crash leading to widespread bank failures and unprecedented unemployment.", "Severe contraction of national industrial and agricultural production sectors.", "Creation of a massive itinerant workforce searching for basic sustenance."], "callout": "Over 25% of the American workforce was unemployed during the peak of the Depression."}, {"title": "The Dust Bowl & Ecological Migration to California", "standard": "11.1.4.1", "bullets": ["Catastrophic environmental drought and topsoil erosion across the Great Plains.", "Displacement of hundreds of thousands of farm families ('Okies') moving westward.", "California as the promised land: expectation vs. harsh economic reality."], "callout": "Ecological disaster combined with economic collapse created an unprecedented migration wave."}, {"title": "The Migrant Worker Experience: Isolation & Displacement", "standard": "11.1.4.4", "bullets": ["Life on the move: temporary binding contracts, binder twine, and bindlestiffs.", "Absence of permanent home, social safety nets, or long-term community roots.", "Psychological toll of chronic transience and social marginalization."], "callout": "Migrant laborers lived in constant transience, owning only what they could carry."}, {"title": "The Salinas Valley: Geographic & Regional Setting", "standard": "11.1.4.1", "bullets": ["Steinbeck's home country: fertile agricultural valley bounded by mountain ranges.", "Contrast between natural beauty/fertility and human economic hardship.", "Setting as a symbolic microcosm of 1930s American agrarian society."], "callout": "Salinas Valley represents both natural abundance and economic inequality."}, {"title": "Socio-Economic Stratification on the 1930s Ranch", "standard": "11.1.4.4", "bullets": ["Power hierarchies: owners, bosses, skilled workers, and disenfranchised hands.", "Intersection of class, disability, age, and race in ranch social structure.", "Evaluating systemic barriers preventing upward social mobility."], "callout": "The ranch structure reflects the broader capitalistic hierarchy of 1930s America."}, {"title": "The Myth of the American Dream in Crisis", "standard": "11.1.4.1", "bullets": ["The agrarian dream of land ownership versus the reality of wage labor.", "George and Lennie's dream of 'a little house and a couple of acres.'", "How socio-economic collapse reshaped the American cultural mythology."], "callout": "The American Dream shifted from achieving prosperity to surviving day-to-day."}, {"title": "Character Dynamics: Interdependence vs. Solitude", "standard": "11.1.4.4", "bullets": ["Unusual companionship of George and Lennie in a world of lonely itinerants.", "Contrasting their bond with the prevailing atmosphere of self-preservation.", "Analyzing how character bonds develop under severe economic pressure."], "callout": "In a world driven by individual survival, mutual dependence is rare and fragile."}, {"title": "Existential Alienation & Loneliness on the Margin", "standard": "11.1.4.4", "bullets": ["Examining marginalized voices: Candy (age/disability), Crooks (race), Curley's wife (gender).", "How social prejudice amplifies emotional and physical isolation.", "Connecting character isolation to broader themes of existential metamorphosis."], "callout": "Loneliness is the universal condition among characters on Steinbeck's ranch."}, {"title": "Symbolism of Nature & Naturalism in Steinbeck's Art", "standard": "11.1.4.1", "bullets": ["Literary Naturalism: human beings governed by instinct, environment, and economy.", "The Salinas River setting: sanctuary vs. inescapable tragedy.", "Animal imagery foreshadowing character fates and power dynamics."], "callout": "Naturalism depicts characters struggling against forces beyond their personal control."}, {"title": "Foreshadowing & Structural Choices in Prose", "standard": "11.1.4.1", "bullets": ["Analyzing Steinbeck's play-novel structure (circular, limited settings, dramatic dialogue).", "Tracking early symbolic events that predict later tragic outcomes.", "Evaluating how structural pacing heightens dramatic inevitability."], "callout": "Steinbeck's tight play-like structure builds an inescapable sense of destiny."}, {"title": "Synthesizing Historical Context & Literary Analysis", "standard": "11.1.4.4", "bullets": ["Connecting historical backdrop directly to character motivations and conflicts.", "Preparing for textual analysis of 'Of Mice and Men' Chapter 1.", "Applying Minnesota ELA Standards 11.1.4.1 and 11.1.4.4 in upcoming essay writing."], "callout": "Understanding historical context illuminates the deeper literary themes of the text."}], "resources": {"primary_sources": ["Library of Congress Dust Bowl Oral Histories", "Dorothea Lange Migrant Mother Photographs (1936)"], "texts": ["Of Mice and Men by John Steinbeck (Chapter 1 Excerpts)", "Steinbeck's 'The Harvest Gypsies' Articles"], "guides": ["MN ELA 11.1.4.1/11.1.4.4 Literary Analysis Rubric"]}, "form": {"field_1": {"name": "student_name", "type": "text", "label": "Student Full Name", "required": true}, "field_2": {"name": "great_depression_impact", "type": "paragraph", "label": "Explain how the Great Depression created the migrant worker phenomenon in 1930s California.", "required": true}, "field_3": {"name": "salinas_valley_significance", "type": "short_answer", "label": "Why is the Salinas Valley setting significant to Steinbeck's personal and literary background?", "required": true}, "field_4": {"name": "dust_bowl_cause", "type": "multiple_choice", "label": "Which two factors combined to create the Dust Bowl crisis?", "options": ["War and industrial pollution", "Severe drought and poor agricultural practices", "Earthquakes and urban growth", "Flooding and economic tariffs"], "required": true}, "field_5": {"name": "american_dream_analysis", "type": "paragraph", "label": "How did the Great Depression alter the concept of the 'American Dream' for rural laborers?", "required": true}, "field_6": {"name": "george_lennie_bond", "type": "short_answer", "label": "Why is George and Lennie's friendship considered unusual among 1930s migrant workers?", "required": true}, "field_7": {"name": "literary_naturalism_def", "type": "short_answer", "label": "Define Literary Naturalism and state how environment controls character destiny.", "required": true}, "field_8": {"name": "marginalized_characters", "type": "multiple_choice", "label": "Which character represents racial isolation on Steinbeck's ranch?", "options": ["Candy", "Crooks", "Slim", "Curley"], "required": true}, "field_9": {"name": "steinbeck_structure", "type": "multiple_choice", "label": "What structural format did Steinbeck intentionally design for 'Of Mice and Men'?", "options": ["Epic poem format", "Play-novel play format with scenic acts", "Epistolary letter collection", "Non-linear stream-of-consciousness"], "required": true}, "field_10": {"name": "historical_framework_summary", "type": "paragraph", "label": "Synthesize how economic crisis and regional geography establish the central conflicts of the novel.", "required": true}}}));
+
+window.addEventListener('DOMContentLoaded', () => initLesson({
+  "course": "English 11: American Literature",
+  "unit": "Unit 8: Socio-Economic Crisis & Migrant Experience",
+  "day": "Day 32",
+  "topic": "Existential Metamorphosis: Part III",
+  "primary_focus": "Establishing the cultural and economic backdrop for Steinbeck's 'Of Mice and Men.'",
+  "core_objectives": "Constructing a historical framework for the novel's regional and temporal setting.",
+  "weekly_standards": ["11.1.4.1", "11.1.4.4"],
+  "bellringers": [
+    {
+      "id": 1,
+      "type": "Short Answer",
+      "prompt": "What major global economic event began in 1929 and shaped American literature of the 1930s?",
+      "expected_response": "The Great Depression."
+    },
+    {
+      "id": 2,
+      "type": "Multiple Choice",
+      "prompt": "Identify the primary agricultural region in California where Steinbeck set 'Of Mice and Men.'",
+      "expected_response": "The Salinas Valley."
+    },
+    {
+      "id": 3,
+      "type": "Short Answer",
+      "prompt": "Define 'migrant worker' in the context of 1930s rural America.",
+      "expected_response": "An itinerant laborer who travels from place to place seeking seasonal agricultural work."
+    },
+    {
+      "id": 4,
+      "type": "Reflective Prompt",
+      "prompt": "How might economic hardship impact human relationships and individual isolation?",
+      "expected_response": "Economic strain breeds competition, distrust, and emotional isolation as people focus on survival."
+    }
+  ],
+  "slides": [
+    {
+      "title": "Historical & Cultural Backdrop of Steinbeck's 'Of Mice and Men'",
+      "standard": "11.1.4.1",
+      "bullets": [
+        "Analyzing 1930s American socio-economic conditions and regional displacement.",
+        "Connecting real historical events to fictional representations in Steinbeck's prose.",
+        "Establishing how regional settings mirror macro-economic realities."
+      ],
+      "callout": "Literature reflects the historical and economic realities of its creation period."
+    },
+    {
+      "title": "The Great Depression & Economic Collapse of 1929",
+      "standard": "11.1.4.1",
+      "bullets": [
+        "Stock market crash leading to widespread bank failures and unprecedented unemployment.",
+        "Severe contraction of national industrial and agricultural production sectors.",
+        "Creation of a massive itinerant workforce searching for basic sustenance."
+      ],
+      "callout": "Over 25% of the American workforce was unemployed during the peak of the Depression."
+    },
+    {
+      "title": "The Dust Bowl & Ecological Migration to California",
+      "standard": "11.1.4.1",
+      "bullets": [
+        "Catastrophic environmental drought and topsoil erosion across the Great Plains.",
+        "Displacement of hundreds of thousands of farm families ('Okies') moving westward.",
+        "California as the promised land: expectation vs. harsh economic reality."
+      ],
+      "callout": "Ecological disaster combined with economic collapse created an unprecedented migration wave."
+    },
+    {
+      "title": "The Migrant Worker Experience: Isolation & Displacement",
+      "standard": "11.1.4.4",
+      "bullets": [
+        "Life on the move: temporary binding contracts, binder twine, and bindlestiffs.",
+        "Absence of permanent home, social safety nets, or long-term community roots.",
+        "Psychological toll of chronic transience and social marginalization."
+      ],
+      "callout": "Migrant laborers lived in constant transience, owning only what they could carry."
+    },
+    {
+      "title": "The Salinas Valley: Geographic & Regional Setting",
+      "standard": "11.1.4.1",
+      "bullets": [
+        "Steinbeck's home country: fertile agricultural valley bounded by mountain ranges.",
+        "Contrast between natural beauty/fertility and human economic hardship.",
+        "Setting as a symbolic microcosm of 1930s American agrarian society."
+      ],
+      "callout": "Salinas Valley represents both natural abundance and economic inequality."
+    },
+    {
+      "title": "Socio-Economic Stratification on the 1930s Ranch",
+      "standard": "11.1.4.4",
+      "bullets": [
+        "Power hierarchies: owners, bosses, skilled workers, and disenfranchised hands.",
+        "Intersection of class, disability, age, and race in ranch social structure.",
+        "Evaluating systemic barriers preventing upward social mobility."
+      ],
+      "callout": "The ranch structure reflects the broader capitalistic hierarchy of 1930s America."
+    },
+    {
+      "title": "The Myth of the American Dream in Crisis",
+      "standard": "11.1.4.1",
+      "bullets": [
+        "The agrarian dream of land ownership versus the reality of wage labor.",
+        "George and Lennie's dream of 'a little house and a couple of acres.'",
+        "How socio-economic collapse reshaped the American cultural mythology."
+      ],
+      "callout": "The American Dream shifted from achieving prosperity to surviving day-to-day."
+    },
+    {
+      "title": "Character Dynamics: Interdependence vs. Solitude",
+      "standard": "11.1.4.4",
+      "bullets": [
+        "Unusual companionship of George and Lennie in a world of lonely itinerants.",
+        "Contrasting their bond with the prevailing atmosphere of self-preservation.",
+        "Analyzing how character bonds develop under severe economic pressure."
+      ],
+      "callout": "In a world driven by individual survival, mutual dependence is rare and fragile."
+    },
+    {
+      "title": "Existential Alienation & Loneliness on the Margin",
+      "standard": "11.1.4.4",
+      "bullets": [
+        "Examining marginalized voices: Candy (age/disability), Crooks (race), Curley's wife (gender).",
+        "How social prejudice amplifies emotional and physical isolation.",
+        "Connecting character isolation to broader themes of existential metamorphosis."
+      ],
+      "callout": "Loneliness is the universal condition among characters on Steinbeck's ranch."
+    },
+    {
+      "title": "Symbolism of Nature & Naturalism in Steinbeck's Art",
+      "standard": "11.1.4.1",
+      "bullets": [
+        "Literary Naturalism: human beings governed by instinct, environment, and economy.",
+        "The Salinas River setting: sanctuary vs. inescapable tragedy.",
+        "Animal imagery foreshadowing character fates and power dynamics."
+      ],
+      "callout": "Naturalism depicts characters struggling against forces beyond their personal control."
+    },
+    {
+      "title": "Foreshadowing & Structural Choices in Prose",
+      "standard": "11.1.4.1",
+      "bullets": [
+        "Analyzing Steinbeck's play-novel structure (circular, limited settings, dramatic dialogue).",
+        "Tracking early symbolic events that predict later tragic outcomes.",
+        "Evaluating how structural pacing heightens dramatic inevitability."
+      ],
+      "callout": "Steinbeck's tight play-like structure builds an inescapable sense of destiny."
+    },
+    {
+      "title": "Synthesizing Historical Context & Literary Analysis",
+      "standard": "11.1.4.4",
+      "bullets": [
+        "Connecting historical backdrop directly to character motivations and conflicts.",
+        "Preparing for textual analysis of 'Of Mice and Men' Chapter 1.",
+        "Applying Minnesota ELA Standards 11.1.4.1 and 11.1.4.4 in upcoming essay writing."
+      ],
+      "callout": "Understanding historical context illuminates the deeper literary themes of the text."
+    }
+  ],
+  "resources": [
+    {
+      "title": "Of Mice and Men by John Steinbeck (Digital Reader)",
+      "description": "Full text reference online via Internet Archive",
+      "url": "https://archive.org/details/ofmiceandmen00john"
+    }
+  ],
+  "form": {
+    "field_1": {
+      "name": "student_name",
+      "type": "text",
+      "label": "Student Full Name",
+      "required": true
+    },
+    "field_2": {
+      "name": "great_depression_impact",
+      "type": "paragraph",
+      "label": "Explain how the Great Depression created the migrant worker phenomenon in 1930s California.",
+      "required": true
+    },
+    "field_3": {
+      "name": "salinas_valley_significance",
+      "type": "short_answer",
+      "label": "Why is the Salinas Valley setting significant to Steinbeck's personal and literary background?",
+      "required": true
+    },
+    "field_4": {
+      "name": "dust_bowl_cause",
+      "type": "multiple_choice",
+      "label": "Which two factors combined to create the Dust Bowl crisis?",
+      "options": [
+        "War and industrial pollution",
+        "Severe drought and poor agricultural practices",
+        "Earthquakes and urban growth",
+        "Flooding and economic tariffs"
+      ],
+      "required": true
+    },
+    "field_5": {
+      "name": "economic_struggle_tf",
+      "type": "true_false",
+      "label": "True or False: Over 25% of the American workforce was unemployed during the peak of the Great Depression.",
+      "required": true
+    },
+    "field_6": {
+      "name": "george_lennie_bond",
+      "type": "short_answer",
+      "label": "Why is George and Lennie's friendship considered unusual among 1930s migrant workers?",
+      "required": true
+    },
+    "field_7": {
+      "name": "naturalism_blank",
+      "type": "fill_in_blank",
+      "label": "Literary Naturalism depicts human beings governed primarily by instinct, environment, and ________.",
+      "required": true
+    },
+    "field_8": {
+      "name": "marginalized_characters",
+      "type": "checkbox_group",
+      "label": "Which factors contributed to character social isolation on Steinbeck's ranch? (Select all that apply)",
+      "options": [
+        "Racial discrimination (Crooks)",
+        "Physical disability and age (Candy)",
+        "Gender restrictions and social exclusion (Curley's wife)",
+        "Corporate executive mandates"
+      ],
+      "required": true
+    },
+    "field_9": {
+      "name": "steinbeck_structure",
+      "type": "multiple_choice",
+      "label": "What structural format did Steinbeck intentionally design for 'Of Mice and Men'?",
+      "options": [
+        "Epic poem format",
+        "Play-novel format with scenic acts and dialogue focus",
+        "Epistolary letter collection",
+        "Non-linear stream-of-consciousness"
+      ],
+      "required": true
+    },
+    "field_10": {
+      "name": "historical_framework_summary",
+      "type": "paragraph",
+      "label": "Synthesize how economic crisis and regional geography establish the central conflicts of the novel.",
+      "required": true
+    }
+  }
+}));
 </script>
 </body>
 </html>
